@@ -47,6 +47,17 @@ async function providerA({ type, tmdbId, season, episode }) {
   return null;
 }
 
+async function providerB({ type, tmdbId, season, episode }) {
+  await new Promise(r => setTimeout(r, jitter(800)));
+  if (type === 'movie' && tmdbId === 1339713) {
+    return {
+      url: 'https://www.themoviedb.org/movie/1339713-obsession',
+      label: 'Provider A (fake)'
+    };
+  }
+  return null;
+}
+
 // ── List of active providers ────────────────────────
 const providers = [publicHLSProvider, providerA];  // real provider first
 
