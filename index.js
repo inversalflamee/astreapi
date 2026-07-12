@@ -10,6 +10,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ---- /api/auth ---- //
+app.post('/api/auth', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing Authorization header' });
+  }
+  const apiKey = authHeader.split(' ')[1];
+  if (apiKey !== process.env.API_KEY) {
+    return res.status(403).json({ error: 'Invalid API key' });
+  }
+  const token = jwt.sign({ type: 'session' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  res.json({ token });
+});
 function verifyToken(req, res, next) {
   const authHeader = req.headers['x-session-token'];
   if (!authHeader) return res.status(401).json({ error: 'Missing X-Session-Token' });
