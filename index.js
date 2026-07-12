@@ -111,5 +111,5 @@ version: v1.0.0
 </div>
 </body>
 </html>`));
-
+app.get('/ping', (req, res) => res.send('pong'));
 app.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));
