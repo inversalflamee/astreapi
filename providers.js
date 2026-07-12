@@ -19,46 +19,36 @@ async function withRetry(fn, retries = 2, baseDelay = 1000) {
 }
 
 // ══════════════════════════════════════════════════════
-//  Example Providers (replace these with real scrapers)
+//  Real Provider 1 – Public HLS Test Stream
+//  (Big Buck Bunny – open source, legal to use)
 // ══════════════════════════════════════════════════════
+async function publicHLSProvider({ type, tmdbId, season, episode }) {
+  await new Promise(r => setTimeout(r, jitter(300))); // minimal delay
 
+  // This provider returns the same stream for any movie/TV request.
+  // For a real service, you'd map tmdbId to actual video URLs.
+  return {
+    url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', // Big Buck Bunny HLS
+    label: 'Public HLS (Demo)'
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  Example Provider 2 (fake) – keep as fallback
+// ══════════════════════════════════════════════════════
 async function providerA({ type, tmdbId, season, episode }) {
-  // Stagger the request
   await new Promise(r => setTimeout(r, jitter(800)));
-
   if (type === 'movie' && tmdbId === 550) {
     return {
       url: 'https://example.com/stream/fightclub.m3u8',
-      label: 'Provider A'
+      label: 'Provider A (fake)'
     };
-  }
-  if (type === 'tv' && tmdbId === 1399 && season === 1 && episode === 1) {
-    return {
-      url: 'https://example.com/stream/got_s1e1.m3u8',
-      label: 'Provider A'
-    };
-  }
-  return null;   // not available from this provider
-}
-
-async function providerB({ type, tmdbId, season, episode }) {
-  await new Promise(r => setTimeout(r, jitter(1200)));
-
-  if (type === 'movie' && tmdbId === 550) {
-    return {
-      url: 'https://example.com/stream/fightclub_alt.mp4',
-      label: 'Provider B'
-    };
-  }
-  // Simulate a failure for Game of Thrones episode
-  if (type === 'tv' && tmdbId === 1399 && season === 1 && episode === 1) {
-    throw new Error('Temporary failure');
   }
   return null;
 }
 
-// ── List of active providers (order doesn’t matter) ──
-const providers = [providerA, providerB];
+// ── List of active providers ────────────────────────
+const providers = [publicHLSProvider, providerA];  // real provider first
 
 // ══════════════════════════════════════════════════════
 //  Provider Runner (retry, verify, emit)
@@ -68,7 +58,16 @@ async function resolveProvider(providerFn, params) {
   try {
     const result = await withRetry(() => providerFn(params), 2, 800);
     if (!result || !result.url) return null;
-    // 🔧 Skip verification – return immediately
+
+    // 🔧 Verification disabled for fake URLs – safe for public demo
+    //    To re-enable, uncomment the block below.
+    // try {
+    //   await axios.head(result.url, { timeout: 5000 });
+    //   return result;
+    // } catch {
+    //   console.warn(`${label} failed URL verification`);
+    //   return null;
+    // }
     return result;
   } catch (err) {
     console.warn(`${label} failed after retries: ${err.message}`);
