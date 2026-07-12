@@ -40,7 +40,8 @@ async function streamSources(req, res, type, params) {
       getSubtitles(type, params.tmdbId).catch(() => []),
     ]);
   } catch (err) {
-    return sendSSE(res, 'error', { message: 'Metadata fetch failed', detail: err.message }) && res.end();
+    sendSSE(res, 'error', { message: 'Metadata fetch failed', detail: err.message });
+    return res.end();
   }
   sendSSE(res, 'meta', { type: 'meta', meta, subtitles, requestId });
   const providerPromises = providers.map(async fn => {
@@ -70,7 +71,7 @@ app.get('/tv', verifyToken, async (req, res) => {
   streamSources(req, res, 'tv', { type: 'tv', tmdbId: id, season, episode });
 });
 
-// ---- /player route ----
+// ********** /player ROUTE **********
 app.get('/player', (req, res) => {
   const { id, season, episode } = req.query;
   if (!id) return res.status(400).send('Missing id');
@@ -78,8 +79,37 @@ app.get('/player', (req, res) => {
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Player</title><style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh}video{width:100%;height:100%}#status{position:absolute;bottom:10px;left:10px;color:#fff;font-size:.8rem;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:4px}</style><script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script></head><body><video id="player" controls autoplay></video><div id="status">Loading…</div><script>const API_KEY="${process.env.API_KEY}";const video=document.getElementById('player');const status=document.getElementById('status');let hlsInst=null;function isMp4(u){try{const i=new URL(u).searchParams.get('url')??u;return /\.(mp4|mkv)(\\?|$)/i.test(i)}catch{return /\.(mp4|mkv)(\\?|$)/i.test(u)}}function attachSource(u,l){status.textContent='Loading '+l+'…';hlsInst?.destroy();hlsInst=null;if(isMp4(u)){video.src=u;video.play().catch(()=>{});status.textContent='Playing '+l+' (MP4)';return}if(Hls.isSupported()){hlsInst=new Hls();hlsInst.loadSource(u);hlsInst.attachMedia(video);hlsInst.on(Hls.Events.MANIFEST_PARSED,()=>{video.play().catch(()=>{});status.textContent='Playing '+l})}else if(video.canPlayType('application/vnd.apple.mpegurl')){video.src=u;video.play().catch(()=>{});status.textContent='Playing '+l}}async function load(){const r=await fetch('/api/auth',{method:'POST',headers:{'Authorization':'Bearer '+API_KEY}});const{token}=await r.json();const res=await fetch('${streamUrl}',{headers:{'X-Session-Token':token}});const reader=res.body.getReader();const dec=new TextDecoder();let buf='',started=false;while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\\n');buf=lines.pop();for(const line of lines){if(!line.startsWith('data: '))continue;const ev=JSON.parse(line.slice(6));if(ev.type==='source'&&!started){started=true;attachSource(ev.source.url,ev.source.label)}if(ev.type==='done'&&!started)status.textContent='No sources available.'}}}load();</script></body></html>`;
   res.set('Content-Type', 'text/html').send(html);
 });
+// ********** END PLAYER ROUTE **********
 
-// ---- Root ASCII Art ----
-app.get('/', (_, res) => res.send(`<!DOCTYPE html>...your ASCII art here...</html>`));
+// Root ASCII Art
+app.get('/', (_, res) => res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTRE Movies & TV</title>
+<style>
+body{ margin:0; background:#111; color:#fff; font-family:Consolas,"Courier New",monospace; padding:20px; }
+pre{ white-space:pre; line-height:1; font-size:15px; margin:0; }
+.info{ margin-top:18px; font-size:18px; line-height:1.5; }
+</style>
+</head>
+<body>
+<pre>
+ █████╗ ███████╗████████╗██████╗ ███████╗
+██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝
+███████║███████╗   ██║   ██████╔╝█████╗
+██╔══██║╚════██║   ██║   ██╔══██╗██╔══╝
+██║  ██║███████║   ██║   ██║  ██║███████╗
+╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
+</pre>
+<div class="info">
+developed by: @astre<br>
+project: ASTRE Movies &amp; TV<br>
+github: https://github.com/astre<br>
+version: v1.0.0
+</div>
+</body>
+</html>`));
 
 app.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));
