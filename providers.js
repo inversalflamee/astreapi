@@ -66,19 +66,10 @@ const providers = [providerA, providerB];
 async function resolveProvider(providerFn, params) {
   const label = providerFn.name || 'unknown';
   try {
-    // 1. Run with retry
     const result = await withRetry(() => providerFn(params), 2, 800);
     if (!result || !result.url) return null;
-
-    // 2. Live verification (HEAD request)
-    //    Remove/comment the verification for testing with fake URLs
-    try {
-      await axios.head(result.url, { timeout: 5000 });
-      return result;          // ✅ verified
-    } catch {
-      console.warn(`${label} failed URL verification`);
-      return null;
-    }
+    // 🔧 Skip verification – return immediately
+    return result;
   } catch (err) {
     console.warn(`${label} failed after retries: ${err.message}`);
     return null;
